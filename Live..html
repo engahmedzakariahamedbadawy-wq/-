@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تطبيق بلاغات ومن أحياها</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div id="app" class="flex flex-col min-h-screen items-center justify-center p-4 md:p-8">
+
+        <!-- Main Screen -->
+        <div id="start-screen" class="w-full max-w-md bg-white rounded-lg shadow-md p-8 text-center transition-all duration-500">
+            <h1 class="text-3xl font-bold text-[#005F73] mb-4">تطبيق بلاغات "ومن أحياها"</h1>
+            <p class="text-lg text-gray-600 mb-8">ساهم في سلامة طرق المدينة المنورة بالإبلاغ عن المخاطر.</p>
+            <button id="start-button" class="w-full bg-[#0A9396] text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-[#005F73] transition-colors duration-300">
+                بدء بلاغ جديد
+            </button>
+        </div>
+
+        <!-- Report Screen -->
+        <div id="report-screen" class="hidden w-full max-w-md bg-white rounded-lg shadow-md p-8 transition-all duration-500">
+            <h1 class="text-3xl font-bold text-[#005F73] mb-6 text-center">بلاغ جديد</h1>
+            
+            <div class="mb-6">
+                <label for="comment-input" class="block text-lg font-medium text-gray-700 mb-2">تعليق على البلاغ</label>
+                <textarea id="comment-input" class="w-full border-2 border-gray-300 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-[#EE9B00] focus:border-transparent transition-all" rows="4" placeholder="اكتب وصفاً موجزاً للمشكلة..."></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-lg font-medium text-gray-700 mb-2">صورة الموقع</label>
+                <input type="file" id="photo-input" accept="image/*" capture="camera" class="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-lg file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-[#94D2BD] file:text-[#005F73]
+                    hover:file:bg-[#CA6702] hover:file:text-white transition-all
+                "/>
+                <div id="photo-preview-container" class="mt-4 hidden">
+                    <img id="photo-preview" src="#" alt="معاينة الصورة" class="w-full h-auto rounded-lg border-2 border-gray-200">
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-lg font-medium text-gray-700 mb-2">الموقع على الخريطة</label>
+                <button id="get-location-button" class="w-full bg-[#CA6702] text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-[#005F73] transition-colors duration-300 mb-4">
+                    تحديد موقعي الحالي
+                </button>
+                <div id="location-display" class="bg-gray-100 p-4 rounded-lg text-center text-gray-600">
+                    <p id="location-text">لم يتم تحديد الموقع بعد.</p>
+                </div>
+            </div>
+
+            <button id="submit-button" class="w-full bg-[#0A9396] text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-[#005F73] transition-colors duration-300">
+                إرسال البلاغ
+            </button>
+            <button id="cancel-button" class="w-full text-gray-500 font-bold py-3 px-6 rounded-lg mt-2 hover:bg-gray-100 transition-colors duration-300">
+                إلغاء
+            </button>
+        </div>
+
+        <!-- Success Screen -->
+        <div id="success-screen" class="hidden w-full max-w-md bg-white rounded-lg shadow-md p-8 text-center transition-all duration-500">
+            <h1 class="text-3xl font-bold text-[#005F73] mb-4">تم الإرسال بنجاح!</h1>
+            <p class="text-lg text-gray-600 mb-8">شكرًا لمساهمتك في تعزيز سلامة طرق المدينة المنورة.</p>
+            <button id="new-report-button" class="w-full bg-[#0A9396] text-white font-bold py-3 px-6 rounded-lg shadow-lg hover:bg-[#005F73] transition-colors duration-300">
+                بلاغ جديد
+            </button>
+        </div>
+
+        <!-- Message Box -->
+        <div id="message-box" class="fixed inset-x-0 bottom-4 mx-auto w-11/12 md:w-full max-w-sm bg-red-500 text-white text-center p-4 rounded-lg shadow-lg hidden">
+            <p id="message-text"></p>
+        </div>
+
+    </div>
+
+    <script>
+        const views = {
+            start: document.getElementById('start-screen'),
+            report: document.getElementById('report-screen'),
+            success: document.getElementById('success-screen'),
+        };
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+
+        let reportData = {
+            comment: null,
+            photo: null,
+            location: {
+                lat: null,
+                lng: null
+            }
+        };
+
+        const showView = (viewName) => {
+            for (const view in views) {
+                views[view].classList.add('hidden');
+            }
+            views[viewName].classList.remove('hidden');
+        };
+
+        const showMessage = (message, type = 'error') => {
+            messageText.textContent = message;
+            messageBox.className = `fixed inset-x-0 bottom-4 mx-auto w-11/12 md:w-full max-w-sm text-white text-center p-4 rounded-lg shadow-lg transition-all duration-300`;
+            if (type === 'error') {
+                messageBox.classList.add('bg-red-500');
+            } else if (type === 'success') {
+                messageBox.classList.add('bg-green-500');
+            }
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000);
+        };
+
+        document.getElementById('start-button').addEventListener('click', () => {
+            showView('report');
+        });
+
+        document.getElementById('cancel-button').addEventListener('click', () => {
+            showView('start');
+        });
+
+        document.getElementById('new-report-button').addEventListener('click', () => {
+            document.getElementById('comment-input').value = '';
+            document.getElementById('photo-input').value = '';
+            document.getElementById('photo-preview-container').classList.add('hidden');
+            document.getElementById('location-text').textContent = 'لم يتم تحديد الموقع بعد.';
+            reportData = {
+                comment: null,
+                photo: null,
+                location: {
+                    lat: null,
+                    lng: null
+                }
+            };
+            showView('start');
+        });
+
+        document.getElementById('photo-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = document.getElementById('photo-preview');
+                    img.src = event.target.result;
+                    document.getElementById('photo-preview-container').classList.remove('hidden');
+                    reportData.photo = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('get-location-button').addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                showMessage('الموقع الجغرافي غير مدعوم في متصفحك.');
+                return;
+            }
+            
+            document.getElementById('location-text').textContent = 'جاري تحديد الموقع...';
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    reportData.location.lat = position.coords.latitude;
+                    reportData.location.lng = position.coords.longitude;
+                    document.getElementById('location-text').textContent = `تم تحديد الموقع: خط العرض ${reportData.location.lat}, خط الطول ${reportData.location.lng}`;
+                },
+                (error) => {
+                    let errorMessage = 'تعذر تحديد موقعك.';
+                    if (error.code === error.PERMISSION_DENIED) {
+                        errorMessage = 'يجب تفعيل خدمة الموقع لتحديد موقعك.';
+                    }
+                    showMessage(errorMessage);
+                    document.getElementById('location-text').textContent = 'فشل تحديد الموقع.';
+                }
+            );
+        });
+
+        document.getElementById('submit-button').addEventListener('click', () => {
+            reportData.comment = document.getElementById('comment-input').value;
+
+            if (!reportData.comment || !reportData.photo || !reportData.location.lat) {
+                showMessage('الرجاء إدخال التعليق، الصورة، وتحديد الموقع قبل الإرسال.');
+                return;
+            }
+
+            console.log('--- New Report Submission ---');
+            console.log('Comment:', reportData.comment);
+            console.log('Location:', `Lat: ${reportData.location.lat}, Lng: ${reportData.location.lng}`);
+            console.log('Photo Data:', reportData.photo.substring(0, 50) + '...');
+            console.log('-----------------------------');
+
+            showView('success');
+        });
+
+        showView('start');
+    </script>
+</body>
+</html>
